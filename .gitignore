@@ -1,0 +1,32 @@
+# Virtual Environment
+venv/
+
+# Dataset
+datasets/
+
+# Outputs
+outputs/
+
+# Refact
+.refact/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Logs
+*.log
+
+# Model Weights
+*.h5
+*.pth
+*.pt
+*.ckpt
+*.onnx
+
+# VS Code
+.vscode/
