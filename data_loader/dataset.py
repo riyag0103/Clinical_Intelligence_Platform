@@ -57,17 +57,41 @@ class CTSegmentationDataset(Dataset):
         )
 
         # ----------------------------------
-        # NORMALIZE IMAGE
+        # CHECK IF FILES LOADED
         # ----------------------------------
-        image = image.astype(np.float32) / 255.0
+        if image is None:
+            raise ValueError(
+                f"Image not found: {image_path}"
+            )
+
+        if mask is None:
+            raise ValueError(
+                f"Mask not found: {mask_path}"
+            )
 
         # ----------------------------------
-        # NORMALIZE MASK
+        # FORCE FIXED SIZE
         # ----------------------------------
+        image = cv2.resize(
+            image,
+            (256, 256),
+            interpolation=cv2.INTER_LINEAR
+        )
+
+        mask = cv2.resize(
+            mask,
+            (256, 256),
+            interpolation=cv2.INTER_NEAREST
+        )
+
+        # ----------------------------------
+        # NORMALIZE
+        # ----------------------------------
+        image = image.astype(np.float32) / 255.0
         mask = mask.astype(np.float32) / 255.0
 
         # ----------------------------------
-        # APPLY AUGMENTATIONS
+        # AUGMENTATIONS
         # ----------------------------------
         if self.transforms:
 
@@ -80,14 +104,20 @@ class CTSegmentationDataset(Dataset):
             mask = augmented["mask"]
 
         # ----------------------------------
-        # ADD CHANNEL DIMENSION
+        # CHANNEL DIMENSION
         # ----------------------------------
-        image = np.expand_dims(image, axis=0)
+        image = np.expand_dims(
+            image,
+            axis=0
+        )
 
-        mask = np.expand_dims(mask, axis=0)
+        mask = np.expand_dims(
+            mask,
+            axis=0
+        )
 
         # ----------------------------------
-        # CONVERT TO TENSORS
+        # TO TENSOR
         # ----------------------------------
         image = torch.tensor(
             image,

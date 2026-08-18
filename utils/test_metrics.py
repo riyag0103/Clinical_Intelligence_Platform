@@ -1,42 +1,16 @@
 import torch
+from metrics import dice_score, iou_score
 
-from metrics import (
-    dice_score,
-    iou_score
-)
+# Perfect match
+gt = torch.tensor([[1,1,0,0]], dtype=torch.float32)
+pred = torch.tensor([[1,1,0,0]], dtype=torch.float32)
 
-# ----------------------------------
-# DUMMY DATA
-# ----------------------------------
-predictions = torch.rand(
-    (1, 1, 256, 256)
-)
+print("Perfect Dice:", dice_score(pred, gt))
+print("Perfect IoU :", iou_score(pred, gt))
 
-targets = torch.rand(
-    (1, 1, 256, 256)
-)
+# Completely wrong
+gt = torch.tensor([[1,1,0,0]], dtype=torch.float32)
+pred = torch.tensor([[0,0,1,1]], dtype=torch.float32)
 
-
-# ----------------------------------
-# CALCULATE METRICS
-# ----------------------------------
-dice = dice_score(
-    predictions,
-    targets
-)
-
-iou = iou_score(
-    predictions,
-    targets
-)
-
-# ----------------------------------
-# PRINT RESULTS
-# ----------------------------------
-print("\nDICE SCORE:")
-print(dice)
-
-print("\nIOU SCORE:")
-print(iou)
-
-print("\nMETRICS WORKING SUCCESSFULLY!")
+print("Wrong Dice:", dice_score(pred, gt))
+print("Wrong IoU :", iou_score(pred, gt))

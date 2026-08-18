@@ -2,8 +2,9 @@ import os
 import sys
 import time
 import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
 import torch
-
 from torch.utils.data import DataLoader
 
 # ==================================================
@@ -33,9 +34,10 @@ def main():
     # ==========================================
     # CONFIG
     # ==========================================
-    NUM_FOLDS = 5
-    EPOCHS = 15
+    NUM_FOLDS = 1
+    EPOCHS = 1
     BATCH_SIZE = 16
+    THRESHOLD = 0.35
 
     KFOLD_DIR = os.path.join(
         PROJECT_ROOT,
@@ -50,8 +52,18 @@ def main():
         "kfold_models"
     )
 
+    RESULTS_DIR = os.path.join(
+        PROJECT_ROOT,
+        "results"
+    )
+
     os.makedirs(
         BEST_MODEL_DIR,
+        exist_ok=True
+    )
+
+    os.makedirs(
+        RESULTS_DIR,
         exist_ok=True
     )
 
@@ -99,13 +111,13 @@ def main():
         train_csv = os.path.join(
             KFOLD_DIR,
             f"fold_{fold}",
-            "train_mini.csv"
+            "train.csv"
         )
 
         val_csv = os.path.join(
             KFOLD_DIR,
             f"fold_{fold}",
-            "val_mini.csv"
+            "val.csv"
         )
 
         train_dataset = CTSegmentationDataset(
@@ -142,6 +154,17 @@ def main():
         )
 
         best_dice = 0
+        best_iou = 0
+
+        history = {
+            "epoch": [],
+            "train_loss": [],
+            "val_loss": [],
+            "train_dice": [],
+            "val_dice": [],
+            "train_iou": [],
+            "val_iou": []
+        }
 
         # ======================================
         # TRAINING
@@ -153,6 +176,8 @@ def main():
             model.train()
 
             running_loss = 0.0
+            train_dice_scores = []
+            train_iou_scores = []
 
             for images, masks in train_loader:
 
@@ -181,9 +206,142 @@ def main():
 
                 running_loss += loss.item()
 
+                with torch.no_grad():
+
+                    binary_preds = (
+                        predictions > THRESHOLD
+                    ).float()
+
+                    train_dice_scores.append(
+                        dice_score(
+                            binary_preds,
+                            masks
+                        )
+                    )
+
+                    train_iou_scores.append(
+                        iou_score(
+                            binary_preds,
+                            masks
+                        )
+                    )
+
             avg_loss = (
                 running_loss /
                 len(train_loader)
+            )
+
+            avg_train_dice = np.mean(
+                train_dice_scores
+            )
+
+            avg_train_iou = np.mean(
+                train_iou_scores
+            )
+
+            # ==================================
+            # VALIDATION EVERY EPOCH
+            # ==================================
+            model.eval()
+
+            val_loss = 0.0
+            val_dice_scores = []
+            val_iou_scores = []
+
+            with torch.no_grad():
+
+              for images, masks in val_loader:
+
+                images = images.to(device)
+                masks = masks.to(device)
+
+                predictions = model(images)
+
+                # DEBUG
+                print("\n========== DEBUG ==========")
+                print("Predictions shape:", predictions.shape)
+                print("Masks shape:", masks.shape)
+
+                print(
+                    "Prediction min/max:",
+                     predictions.min().item(),
+                     predictions.max().item()
+                )       
+
+                print(
+                    "Mask unique values:",
+                     torch.unique(masks)
+                )
+
+                print("===========================\n")
+
+                loss = criterion(
+                    predictions,
+                    masks
+                )
+
+                val_loss += loss.item()
+
+                binary_preds = (
+                    predictions > THRESHOLD
+                ).float()
+
+                val_dice_scores.append(
+                    dice_score(
+                        binary_preds,
+                        masks
+                    )
+                )
+
+                val_iou_scores.append(
+                    iou_score(
+                        binary_preds,
+                        masks
+                    )
+                )
+
+            avg_val_loss = (
+                val_loss /
+                len(val_loader)
+            )
+
+            avg_val_dice = np.mean(
+                val_dice_scores
+            )
+
+            avg_val_iou = np.mean(
+                val_iou_scores
+            )
+
+            # ==================================
+            # SAVE HISTORY
+            # ==================================
+            history["epoch"].append(
+                epoch + 1
+            )
+
+            history["train_loss"].append(
+                avg_loss
+            )
+
+            history["val_loss"].append(
+                avg_val_loss
+            )
+
+            history["train_dice"].append(
+                avg_train_dice
+            )
+
+            history["val_dice"].append(
+                avg_val_dice
+            )
+
+            history["train_iou"].append(
+                avg_train_iou
+            )
+
+            history["val_iou"].append(
+                avg_val_iou
             )
 
             epoch_time = (
@@ -194,46 +352,31 @@ def main():
             print(
                 f"Fold {fold} | "
                 f"Epoch {epoch+1}/{EPOCHS} | "
-                f"Loss: {avg_loss:.4f} | "
-                f"Time: {epoch_time:.2f}s"
+                f"Train Loss={avg_loss:.4f} | "
+                f"Val Loss={avg_val_loss:.4f} | "
+                f"Train Dice={avg_train_dice:.4f} | "
+                f"Val Dice={avg_val_dice:.4f}"
+            )
+
+            # Save best model
+            if avg_val_dice > best_dice:
+
+                 best_dice = avg_val_dice
+                 best_iou = avg_val_iou
+
+            torch.save(
+                model.state_dict(),
+                os.path.join(
+                 BEST_MODEL_DIR,
+                 f"attention_unet_fold_{fold}.pth"
+                )
             )
 
         # ======================================
-        # VALIDATION
+        # FINAL FOLD RESULTS
         # ======================================
-        model.eval()
-
-        val_dice = []
-        val_iou = []
-
-        with torch.no_grad():
-
-            for images, masks in val_loader:
-
-                images = images.to(device)
-                masks = masks.to(device)
-
-                predictions = model(images)
-
-                predictions = (
-                    predictions > 0.35
-                ).float()
-
-                dice = dice_score(
-                    predictions,
-                    masks
-                )
-
-                iou = iou_score(
-                    predictions,
-                    masks
-                )
-
-                val_dice.append(dice)
-                val_iou.append(iou)
-
-        avg_dice = np.mean(val_dice)
-        avg_iou = np.mean(val_iou)
+        avg_dice = best_dice
+        avg_iou = best_iou
 
         fold_dice_scores.append(
             avg_dice
@@ -243,6 +386,111 @@ def main():
             avg_iou
         )
 
+        # ======================================
+        # SAVE CSV
+        # ======================================
+        history_df = pd.DataFrame(
+            history
+        )
+
+        history_csv = os.path.join(
+            RESULTS_DIR,
+            f"fold_{fold}_history.csv"
+        )
+
+        history_df.to_csv(
+            history_csv,
+            index=False
+        )
+
+        # ======================================
+        # GENERATE CURVES
+        # ======================================
+        plt.figure(
+            figsize=(15, 10)
+        )
+
+        # LOSS
+        plt.subplot(2, 2, 1)
+
+        plt.plot(
+            history["train_loss"],
+            label="Train"
+        )
+
+        plt.plot(
+            history["val_loss"],
+            label="Val"
+        )
+
+        plt.title("Loss")
+        plt.legend()
+
+        # DICE
+        plt.subplot(2, 2, 2)
+
+        plt.plot(
+            history["train_dice"],
+            label="Train"
+        )
+
+        plt.plot(
+            history["val_dice"],
+            label="Val"
+        )
+
+        plt.title("Dice")
+        plt.legend()
+
+        # IOU
+        plt.subplot(2, 2, 3)
+
+        plt.plot(
+            history["train_iou"],
+            label="Train"
+        )
+
+        plt.plot(
+            history["val_iou"],
+            label="Val"
+        )
+
+        plt.title("IoU")
+        plt.legend()
+
+        # OVERFITTING GAP
+        gap = np.array(
+            history["train_dice"]
+        ) - np.array(
+            history["val_dice"]
+        )
+
+        plt.subplot(2, 2, 4)
+
+        plt.plot(
+            gap,
+            label="Gap"
+        )
+
+        plt.title(
+            "Overfitting Gap"
+        )
+
+        plt.legend()
+
+        plt.tight_layout()
+
+        graph_path = os.path.join(
+            RESULTS_DIR,
+            f"fold_{fold}_curves.png"
+        )
+
+        plt.savefig(
+            graph_path
+        )
+
+        plt.close()
+
         print("\n" + "-" * 50)
         print(f"FOLD {fold} RESULTS")
         print("-" * 50)
@@ -250,21 +498,9 @@ def main():
         print(f"Dice: {avg_dice:.4f}")
         print(f"IoU : {avg_iou:.4f}")
 
-        if avg_dice > best_dice:
-
-            best_dice = avg_dice
-
-            torch.save(
-                model.state_dict(),
-                os.path.join(
-                    BEST_MODEL_DIR,
-                    f"attention_unet_fold_{fold}.pth"
-                )
-            )
-
-            print(
-                f"Best Fold {fold} Model Saved!"
-            )
+        print(
+            f"Best Fold {fold} Model Saved!"
+        )
 
     # ==========================================
     # FINAL REPORT
