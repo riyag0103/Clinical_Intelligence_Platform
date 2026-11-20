@@ -1,32 +1,154 @@
-# Virtual Environment
-venv/
-
-# Dataset
-datasets/
-
-# Outputs
-outputs/
-
-# Refact
-.refact/
-
-# Python
+@'
+# ==========================================
+# PYTHON
+# ==========================================
 __pycache__/
-*.pyc
-*.pyo
+*.py[cod]
+*$py.class
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
 
-# Jupyter
-.ipynb_checkpoints/
+# ==========================================
+# VIRTUAL ENVIRONMENTS
+# ==========================================
+venv/
+.venv/
+env/
+ENV/
+.python-version
 
-# Logs
-*.log
+# ==========================================
+# DATASETS - LIDC-IDRI / CANCER DATA
+# ==========================================
+data/
+datasets/
+raw_data/
+processed_data/
+external_data/
 
-# Model Weights
+*.dcm
+*.nii
+*.nii.gz
+*.npy
+*.npz
+*.hdf5
 *.h5
+*.parquet
+
+# ==========================================
+# TRAINED MODELS AND CHECKPOINTS
+# ==========================================
+saved_models/
+checkpoints/
+weights/
+model_weights/
 *.pth
 *.pt
 *.ckpt
 *.onnx
+*.keras
+*.pb
+*.tflite
 
-# VS Code
+# ==========================================
+# TRAINING RESULTS AND EXPERIMENTS
+# ==========================================
+results/
+runs/
+logs/
+outputs/
+experiments/
+lightning_logs/
+tensorboard/
+wandb/
+mlruns/
+mlartifacts/
+
+# ==========================================
+# JUPYTER
+# ==========================================
+.ipynb_checkpoints/
+
+# ==========================================
+# DVC
+# ==========================================
+# Keep .dvc/config, .dvcignore and .dvc files tracked.
+# Ignore only local DVC cache and temporary state.
+.dvc/cache/
+.dvc/tmp/
+
+# ==========================================
+# ENVIRONMENT VARIABLES / SECRETS
+# ==========================================
+.env
+.env.*
+!.env.example
+!.env.template
+secrets/
+*.pem
+*.key
+
+# ==========================================
+# DATABASE
+# ==========================================
+*.sqlite
+*.sqlite3
+*.db
+
+# ==========================================
+# FASTAPI / SERVER
+# ==========================================
+*.log
+uvicorn.log
+
+# ==========================================
+# IDE / EDITORS
+# ==========================================
 .vscode/
+.idea/
+*.swp
+*.swo
+
+# ==========================================
+# OPERATING SYSTEM
+# ==========================================
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ==========================================
+# NODE / FRONTEND
+# ==========================================
+node_modules/
+.next/
+out/
+dist/
+coverage/
+
+# ==========================================
+# TEMPORARY FILES
+# ==========================================
+*.tmp
+*.bak
+*.temp
+.cache/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# ==========================================
+# DEVELOPMENT TOOL STATE
+# ==========================================
+.refact/
+
+# ==========================================
+# PROJECT INSPECTION FILES
+# ==========================================
+project_structure.txt
+project_folders.txt
+python_files.txt
+installed_requirements.txt
+'@ | Set-Content -Encoding utf8 .gitignore

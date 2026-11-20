@@ -35,12 +35,15 @@ from utils.metrics import (
 # ----------------------------------
 # DEVICE
 # ----------------------------------
-device = torch.device(
-    "cuda" if torch.cuda.is_available()
-    else "cpu"
-)
+if not torch.cuda.is_available():
+    raise RuntimeError(
+        "CUDA is unavailable. Install a CUDA-enabled PyTorch build and verify "
+        "the NVIDIA driver with nvidia-smi before starting training."
+    )
 
-print(f"\nUSING DEVICE: {device}")
+device = torch.device("cuda")
+
+print(f"\nUSING DEVICE: {device} ({torch.cuda.get_device_name(0)})")
 
 # ----------------------------------
 # LOAD DATASET
@@ -57,7 +60,8 @@ dataset = CTSegmentationDataset(metadata_path)
 dataloader = DataLoader(
     dataset,
     batch_size=4,
-    shuffle=True
+    shuffle=True,
+    pin_memory=True
 )
 
 # ----------------------------------
@@ -100,9 +104,9 @@ for epoch in range(EPOCHS):
 
     for batch_idx, (images, masks) in enumerate(dataloader):
 
-        images = images.to(device)
+        images = images.to(device, non_blocking=True)
 
-        masks = masks.to(device)
+        masks = masks.to(device, non_blocking=True)
 
         # ----------------------------------
         # FORWARD
